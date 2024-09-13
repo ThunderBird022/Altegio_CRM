@@ -117,3 +117,26 @@ def get_schedule(company_id, user_token):
     except requests.RequestException as e:
         print(f'Error fetching schedule: {e}')
         return None
+
+def get_timetable_seances(company_id, staff_id, date, user_token):
+    """Fetch the timetable seances for a specific company, staff member, and date."""
+    headers = {
+        'Accept': 'application/vnd.api.v2+json',
+        'Authorization': f'Bearer {PARTNER_TOKEN}',
+        'User': user_token
+    }
+
+    url = f'https://api.alteg.io/api/v1/timetable/seances/{company_id}/{staff_id}/{date}'
+    print(url)
+
+    try:
+        response = requests.get(url, headers=headers)
+
+        if response.status_code == 200:
+            print('Timetable Seances:', response.json())
+            return response.json()
+        else:
+            print(f'Error: {response.status_code}, {response.text}')
+    except requests.RequestException as e:
+        print(f'Error fetching timetable seances: {e}')
+        return None
