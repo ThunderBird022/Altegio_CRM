@@ -140,3 +140,51 @@ def get_timetable_seances(company_id, staff_id, date, user_token):
     except requests.RequestException as e:
         print(f'Error fetching timetable seances: {e}')
         return None
+
+def get_companies(user_token):
+    """Fetch the list of companies."""
+    headers = {
+        'Accept': 'application/vnd.api.v2+json',
+        'Authorization': f'Bearer {PARTNER_TOKEN}',
+        'User': user_token
+    }
+    
+    url = 'https://api.alteg.io/api/v1/companies'
+    print(url)
+
+    try:
+        response = requests.get(url, headers=headers)
+
+        if response.status_code == 200:
+            print('Companies:', response.json())
+            return response.json()
+        else:
+            print(f'Error: {response.status_code}, {response.text}')
+    except requests.RequestException as e:
+        print(f'Error fetching companies: {e}')
+        return None
+
+def get_services(company_id, user_token):
+    """Fetch the list of services for a specific company."""
+    headers = {
+        'Accept': 'application/vnd.api.v2+json',
+        'Authorization': f'Bearer {PARTNER_TOKEN}',
+        'User': user_token
+    }
+    
+    url = f'https://api.alteg.io/api/v1/company/{company_id}/services'
+    print(url)
+
+    try:
+        response = requests.get(url, headers=headers)
+
+        if response.status_code == 200:
+            print('Service Details:', response.json())
+            return response.json()
+        else:
+            print(f'Error: {response.status_code}, {response.text}')
+    except requests.RequestException as e:
+        print(f'Error fetching services: {e}')
+        return None
+
+
