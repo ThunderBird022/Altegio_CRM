@@ -187,4 +187,44 @@ def get_services(company_id, user_token):
         print(f'Error fetching services: {e}')
         return None
 
+def create_new_entry(company_id, staff_id, services, client, save_if_busy, datetime, seance_length=None, send_sms=False, comment=None, sms_remain_hours=0, email_remain_hours=0, attendance=0, api_id=None, custom_color=None, record_labels=None, custom_fields=None, user_token=None):
+    """Create a new entry for a group event or client."""
+    url = f'{BASE_URL}/records/{company_id}'
+    
+    headers = {
+            'Accept' : 'application/vnd.api.v2+json',
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {PARTNER_TOKEN}, User {user_token}'
+    }
 
+    # Create the request body
+    body = {
+        "staff_id": staff_id,
+        "services": services,
+        "client": client,
+        "save_if_busy": save_if_busy,
+        "datetime": datetime,
+        "send_sms": send_sms,
+        "sms_remain_hours": sms_remain_hours,
+        "email_remain_hours": email_remain_hours,
+        "attendance": attendance,
+    }
+
+    # Optional parameters
+    if seance_length: body["seance_length"] = seance_length
+    if comment: body["comment"] = comment
+    if api_id: body["api_id"] = api_id
+    if custom_color: body["custom_color"] = custom_color
+    if record_labels: body["record_labels"] = record_labels
+    if custom_fields: body["custom_fields"] = custom_fields
+
+    try:
+        response = requests.post(url, headers=headers, json=body)
+        if response.status_code == 201:
+            print('New Entry Created:', response.json())
+            return response.json()
+        else:
+            print(f'Error: {response.status_code}, {response.text}')
+    except requests.RequestException as e:
+        print(f'Error creating new entry: {e}')
+        return None
