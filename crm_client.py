@@ -348,22 +348,4 @@ def find_available_dates_with_seances(company_id, service_id, start_date, user_t
                     })
 
     return available_slots_per_staff
-
-# Пример вызова
-company_id = COMPANY_ID
-service_id = 11850477
-start_date = "2024-09-15"
-user_token = USER_TOKEN
-
-available_dates = find_available_dates_with_seances(company_id, service_id, start_date, user_token)
-
-# Выводим результат
-if available_dates:
-    for staff, dates in available_dates.items():
-        print(f"Сотрудник: {staff}")
-        for date_info in dates:
-            print(f"  Дата: {date_info['date']}")
-            print(f"  Свободные слоты: {', '.join(date_info['slots'])}")
-else:
-    print("Нет доступных сотрудников или свободных слотов.")
 ### "GET SLOTS" BLOCK END
