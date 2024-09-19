@@ -233,6 +233,27 @@ def create_new_entry(company_id, staff_id, services, client, save_if_busy, datet
 import requests
 from datetime import datetime, timedelta
 
+def get_employee_schedule(company_id, staff_id, start_date, end_date, user_token):
+    """Fetch an employee's schedule for a given period."""
+    url = f'{BASE_URL}/schedule/{company_id}/{staff_id}/{start_date}/{end_date}'
+
+    headers = {
+        'Accept': 'application/vnd.api.v2+json',
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {PARTNER_TOKEN}, User {user_token}'
+    }
+
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f'Error: {response.status_code}, {response.text}')
+            return None
+    except requests.RequestException as e:
+        print(f'Error fetching employee schedule: {e}')
+        return None
+
 def filter_and_merge_available_slots(timetable_data, duration_minutes):
     """Фильтруем и объединяем доступные временные слоты с добавлением 5 минут к окончанию интервала."""
     current_slot_start = None
@@ -275,7 +296,7 @@ def get_services_staff_and_duration(company_id, service_id, user_token):
         'Accept': 'application/vnd.api.v2+json',
         'Authorization': f'Bearer {PARTNER_TOKEN}, User {user_token}'
     }
-    
+
     url = f'https://api.alteg.io/api/v1/company/{company_id}/services'
     response = requests.get(url, headers=headers)
     
@@ -303,7 +324,7 @@ def get_timetable_seances(company_id, staff_id, date, user_token):
         'Content-Type': 'application/json',
         'Authorization': f'Bearer {PARTNER_TOKEN}, User {user_token}'
     }
-    
+
     url = f'https://api.alteg.io/api/v1/timetable/seances/{company_id}/{staff_id}/{date}'
 
     # Make the GET request
@@ -316,36 +337,52 @@ def get_timetable_seances(company_id, staff_id, date, user_token):
         print(f'Error: {response.status_code}, {response.text}')
         return None
 
-# Основная функция для поиска доступных слотов с использованием timetable seances
-def find_available_dates_with_seances(company_id, service_id, start_date, user_token):
-    """Находим ближайшие свободные даты для записи по каждому сотруднику с учетом сеансов расписания."""
-    staff_list, duration_minutes = get_services_staff_and_duration(company_id, service_id, user_token)
+def get_schedule_for_all_staff(company_id, staff_list, start_date, user_token):
+    """Получаем расписание для всех сотрудников на ближайшие 2 недели."""
+    end_date = (datetime.strptime(start_date, "%Y-%m-%d") + timedelta(days=14)).strftime("%Y-%m-%d")
+    all_schedules = []
 
+    for staff in staff_list:
+        staff_schedule = get_employee_schedule(company_id, staff['id'], start_date, end_date, user_token)
+        if staff_schedule and staff_schedule.get('data'):
+            for day in staff_schedule['data']:
+                if day['is_working'] == 1:  # Проверяем, что сотрудник работает в этот день
+                    all_schedules.append({
+                        'staff_id': staff['id'],
+                        'staff_name': staff['name'],
+                        'date': day['date'],
+                        'slots': day['slots']  # Предполагается, что свободные слоты также здесь
+                    })
+    
+    return all_schedules
+
+# Основная функция для поиска ближайших свободных слотов
+def find_available_date(company_id, service_id, start_date, user_token):
+    """Находим ближайший рабочий день с доступными слотами для записи по всем сотрудникам."""
+    staff_list, duration_minutes = get_services_staff_and_duration(company_id, service_id, user_token)
+    
     if not staff_list:
         print("Сотрудники не найдены для указанного сервиса.")
         return None
 
-    available_slots_per_staff = {}
+    # Получаем расписание для всех сотрудников
+    all_schedules = get_schedule_for_all_staff(company_id, staff_list, start_date, user_token)
 
-    # Начальная дата поиска
-    start_date_dt = datetime.strptime(start_date, "%Y-%m-%d")
+    # Сортируем расписания по дате
+    all_schedules.sort(key=lambda x: x['date'])
 
-    for staff in staff_list:
-        staff_id = staff['id']
-        staff_name = staff['name']
-        available_slots_per_staff[staff_name] = []
+    # Проходим по расписанию, чтобы найти ближайший свободный слот
+    for schedule in all_schedules:
+        timetable_seances = get_timetable_seances(company_id, schedule['staff_id'], schedule['date'], user_token)
+        
+        if timetable_seances and 'data' in timetable_seances:
+            available_slots = filter_and_merge_available_slots(timetable_seances['data'], duration_minutes)
+            if available_slots:
+                return {
+                    'staff_name': schedule['staff_name'],
+                    'date': schedule['date'],
+                    'slots': available_slots
+                }
 
-        for day_offset in range(3):  # Ищем на ближайшие N дней
-            search_date = (start_date_dt + timedelta(days=day_offset)).strftime("%Y-%m-%d")
-            timetable_seances = get_timetable_seances(company_id, staff_id, search_date, user_token)
-
-            if timetable_seances and 'data' in timetable_seances:
-                available_slots = filter_and_merge_available_slots(timetable_seances['data'], duration_minutes)
-                if available_slots:
-                    available_slots_per_staff[staff_name].append({
-                        'date': search_date,
-                        'slots': available_slots
-                    })
-
-    return available_slots_per_staff
+    return None
 ### "GET SLOTS" BLOCK END
